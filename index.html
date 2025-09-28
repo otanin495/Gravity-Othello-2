@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modified Gravity Othello</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .game-info {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .game-title {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .score {
+            font-size: 24px;
+        }
+
+        .board-selection {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .size-button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px 0;
+            display: block;
+            width: 200px;
+            margin-left: auto;
+            margin-right: auto;
+            transition: background-color 0.3s;
+        }
+
+        .size-button:hover {
+            background-color: #1976D2;
+        }
+
+        .board-container {
+            perspective: 1000px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .board {
+            display: inline-grid;
+            gap: 2px;
+            background-color: #000000;
+            padding: 10px;
+            border-radius: 8px;
+            transition: transform 0.8s ease-in-out;
+        }
+
+        .board.size-4 {
+            grid-template-columns: repeat(4, 60px);
+            grid-template-rows: repeat(4, 60px);
+        }
+
+        .board.size-6 {
+            grid-template-columns: repeat(6, 60px);
+            grid-template-rows: repeat(6, 60px);
+        }
+
+        .board.size-8 {
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+        }
+
+        .cell {
+            background-color: #228B22;
+            border-radius: 4px;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .cell.size-4, .cell.size-6 {
+            width: 60px;
+            height: 60px;
+        }
+
+        .cell.size-8 {
+            width: 50px;
+            height: 50px;
+        }
+
+        .cell:hover {
+            background-color: #90EE90;
+        }
+
+        .piece {
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid #333;
+            transition: all 0.3s ease;
+        }
+
+        .piece.size-4, .piece.size-6 {
+            width: 50px;
+            height: 50px;
+        }
+
+        .piece.size-8 {
+            width: 40px;
+            height: 40px;
+        }
+
+        .piece.black {
+            background-color: #000;
+        }
+
+        .piece.white {
+            background-color: #FFF;
+        }
+
+        .piece.falling {
+            transition: top 0.3s ease-in;
+        }
+
+        .rotating {
+            animation: rotate90 0.8s ease-in-out;
+        }
+
+        @keyframes rotate90 {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(90deg); }
+        }
+
+        .message {
+            font-size: 20px;
+            margin-top: 10px;
+            min-height: 40px;
+            text-align: center;
+        }
+
+        .game-over {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #1976D2;
+        }
+
+        .game-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .game-title {
+                font-size: 24px;
+            }
+
+            .score {
+                font-size: 18px;
+            }
+
+            .message {
+                font-size: 16px;
+            }
+
+            .size-button {
+                width: 150px;
+                font-size: 16px;
+                padding: 12px 20px;
+            }
+
+            .board.size-4 {
+                grid-template-columns: repeat(4, 45px);
+                grid-template-rows: repeat(4, 45px);
+            }
+
+            .board.size-6 {
+                grid-template-columns: repeat(6, 40px);
+                grid-template-rows: repeat(6, 40px);
+            }
+
+            .board.size-8 {
+                grid-template-columns: repeat(8, 35px);
+                grid-template-rows: repeat(8, 35px);
+            }
+
+            .cell.size-4 {
+                width: 45px;
+                height: 45px;
+            }
+
+            .cell.size-6 {
+                width: 40px;
+                height: 40px;
+            }
+
+            .cell.size-8 {
+                width: 35px;
+                height: 35px;
+            }
+
+            .piece.size-4 {
+                width: 38px;
+                height: 38px;
+            }
+
+            .piece.size-6 {
+                width: 32px;
+                height: 32px;
+            }
+
+            .piece.size-8 {
+                width: 28px;
+                height: 28px;
+            }
+
+            button {
+                font-size: 14px;
+                padding: 8px 16px;
+            }
+
+            .game-controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .game-controls button {
+                width: 150px;
+                margin: 3px 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .board.size-4 {
+                grid-template-columns: repeat(4, 40px);
+                grid-template-rows: repeat(4, 40px);
+            }
+
+            .board.size-6 {
+                grid-template-columns: repeat(6, 35px);
+                grid-template-rows: repeat(6, 35px);
+            }
+
+            .board.size-8 {
+                grid-template-columns: repeat(8, 30px);
+                grid-template-rows: repeat(8, 30px);
+            }
+
+            .cell.size-4 {
+                width: 40px;
+                height: 40px;
+            }
+
+            .cell.size-6 {
+                width: 35px;
+                height: 35px;
+            }
+
+            .cell.size-8 {
+                width: 30px;
+                height: 30px;
+            }
+
+            .piece.size-4 {
+                width: 32px;
+                height: 32px;
+            }
+
+            .piece.size-6 {
+                width: 28px;
+                height: 28px;
+            }
+
+            .piece.size-8 {
+                width: 24px;
+                height: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-info">
+        <div class="game-title">Modified Gravity Othello</div>
+        
+        <div id="boardSelection" class="board-selection">
+            <p>盤面サイズを選択してください</p>
+            <button class="size-button" onclick="startGame(4)">4×4盤</button>
+            <button class="size-button" onclick="startGame(6)">6×6盤</button>
+            <button class="size-button" onclick="startGame(8)">8×8盤</button>
+        </div>
+
+        <div id="gameInfo" class="hidden">
+            <div class="score">
+                黒: <span id="blackScore">0</span> | 白: <span id="whiteScore">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="gameArea" class="hidden">
+        <div class="board-container">
+            <div id="board" class="board"></div>
+        </div>
+
+        <div class="message" id="message"></div>
+        
+        <div class="game-controls">
+            <button onclick="resetGame()">リセット</button>
+            <button onclick="backToSelection()">盤面選択に戻る</button>
+        </div>
+    </div>
+
+    <script>
+        let board = [];
+        let currentPlayer = 1;
+        let gameOver = false;
+        let isAnimating = false;
+        let isFirstMove = true;
+        let boardSize = 6;
+
+        function startGame(size) {
+            boardSize = size;
+            document.getElementById('boardSelection').classList.add('hidden');
+            document.getElementById('gameInfo').classList.remove('hidden');
+            document.getElementById('gameArea').classList.remove('hidden');
+            initializeBoard();
+        }
+
+        function backToSelection() {
+            document.getElementById('boardSelection').classList.remove('hidden');
+            document.getElementById('gameInfo').classList.add('hidden');
+            document.getElementById('gameArea').classList.add('hidden');
+        }
+
+        function initializeBoard() {
+            board = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
+
+            const center = Math.floor(boardSize / 2);
+            board[center-1][center-1] = -1;
+            board[center-1][center] = 1;
+            board[center][center-1] = 1;
+            board[center][center] = -1;
+
+            currentPlayer = 1;
+            gameOver = false;
+            isAnimating = false;
+            isFirstMove = true;
+            renderBoard();
+            updateUI();
+        }
+
+        function renderBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            boardElement.className = `board size-${boardSize}`;
+
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = `cell size-${boardSize}`;
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    if (board[row][col] !== 0) {
+                        const piece = document.createElement('div');
+                        piece.className = `piece size-${boardSize} ${board[row][col] === 1 ? 'black' : 'white'}`;
+                        cell.appendChild(piece);
+                    }
+
+                    cell.addEventListener('click', () => handleCellClick(row, col));
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // 盤面をコピーする関数
+        function copyBoard(board) {
+            return board.map(row => [...row]);
+        }
+
+        // 盤面を90度回転させる関数
+        function rotateBoard90(board) {
+            const newBoard = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    newBoard[col][boardSize - 1 - row] = board[row][col];
+                }
+            }
+            return newBoard;
+        }
+
+        // 重力を適用する関数
+        function applyGravityToBoard(board) {
+            const newBoard = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
+            for (let col = 0; col < boardSize; col++) {
+                const column = [];
+                for (let row = 0; row < boardSize; row++) {
+                    if (board[row][col] !== 0) {
+                        column.push(board[row][col]);
+                    }
+                }
+
+                for (let i = 0; i < column.length; i++) {
+                    newBoard[boardSize - 1 - i][col] = column[column.length - 1 - i];
+                }
+            }
+            return newBoard;
+        }
+
+        function isValidMoveAfterGravity(row, col, player) {
+            const tempBoard = copyBoard(board);
+            tempBoard[row][col] = player;
+
+            if (isFirstMove && player === 1) {
+                return canFlipPieces(tempBoard, row, col, player);
+            }
+
+            const rotatedBoard = rotateBoard90(tempBoard);
+
+            const finalBoard = applyGravityToBoard(rotatedBoard);
+
+            let finalRow = -1, finalCol = -1;
+
+            const rotatedRow = col;
+            const rotatedCol = boardSize - 1 - row;
+
+            for (let r = boardSize - 1; r >= 0; r--) {
+                if (finalBoard[r][rotatedCol] === player) {
+                    finalRow = r;
+                    break;
+                }
+            }
+            finalCol = rotatedCol;
+            
+            if (finalRow === -1) return false;
+
+            return canFlipPieces(finalBoard, finalRow, finalCol, player);
+        }
+
+        function canFlipPieces(board, row, col, player) {
+            const directions = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]];
+            
+            for (const [dr, dc] of directions) {
+                if (canFlipInDirection(board, row, col, dr, dc, player)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function canFlipInDirection(board, row, col, dr, dc, player) {
+            let r = row + dr;
+            let c = col + dc;
+            let hasOpponent = false;
+
+            while (r >= 0 && r < boardSize && c >= 0 && c < boardSize) {
+                if (board[r][c] === 0) return false;
+                if (board[r][c] === -player) {
+                    hasOpponent = true;
+                } else if (board[r][c] === player) {
+                    return hasOpponent;
+                }
+                r += dr;
+                c += dc;
+            }
+            return false;
+        }
+
+        function flipPieces(board, row, col, player) {
+            const directions = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]];
+            
+            for (const [dr, dc] of directions) {
+                if (canFlipInDirection(board, row, col, dr, dc, player)) {
+                    let r = row + dr;
+                    let c = col + dc;
+                    while (board[r][c] === -player) {
+                        board[r][c] = player;
+                        r += dr;
+                        c += dc;
+                    }
+                }
+            }
+        }
+
+        function checkImmediateGameEnd() {
+            const blackCount = countPieces(1);
+            const whiteCount = countPieces(-1);
+            const totalPieces = blackCount + whiteCount;
+            const maxPieces = boardSize * boardSize;
+
+            if (totalPieces === maxPieces || blackCount === 0 || whiteCount === 0) {
+                gameOver = true;
+                let winner = '引き分け';
+                if (blackCount > whiteCount) winner = '黒の勝ち';
+                else if (whiteCount > blackCount) winner = '白の勝ち';
+                document.getElementById('message').textContent = `${winner}！`;
+                document.getElementById('message').classList.add('game-over');
+                return true;
+            }
+            return false;
+        }
+
+        function handleCellClick(row, col) {
+            if (gameOver || isAnimating || board[row][col] !== 0) {
+                return;
+            }
+
+            // 有効な手かチェック
+            if (!isValidMoveAfterGravity(row, col, currentPlayer)) {
+                document.getElementById('message').textContent = 'そのマスには置けません';
+                document.getElementById('message').classList.add('error');
+                setTimeout(() => {
+                    document.getElementById('message').classList.remove('error');
+                    updateUI();
+                }, 2000);
+                return;
+            }
+
+            isAnimating = true;
+            board[row][col] = currentPlayer;
+            renderBoard();
+            updateUI();
+
+            if (checkImmediateGameEnd()) {
+                isAnimating = false;
+                return;
+            }
+
+            if (isFirstMove && currentPlayer === 1) {
+                isFirstMove = false;
+                setTimeout(() => {
+                    applyGravity(() => {
+                        performFlippingAfterGravity(currentPlayer, () => {
+                            currentPlayer = -currentPlayer;
+                            setTimeout(() => {
+                                if (!checkImmediateGameEnd()) {
+                                    checkGameEnd();
+                                }
+                                isAnimating = false;
+                            }, 100);
+                        });
+                    });
+                }, 500);
+            } else {
+                setTimeout(() => {
+                    rotateBoard();
+                    setTimeout(() => {
+                        applyGravity(() => {
+                            performFlippingAfterGravity(currentPlayer, () => {
+                                currentPlayer = -currentPlayer;
+                                setTimeout(() => {
+                                    if (!checkImmediateGameEnd()) {
+                                        checkGameEnd();
+                                    }
+                                    isAnimating = false;
+                                }, 100);
+                            });
+                        });
+                    }, 900);
+                }, 500);
+            }
+        }
+
+        function performFlippingAfterGravity(player, callback) {
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    if (board[row][col] === player) {
+                        flipPieces(board, row, col, player);
+                    }
+                }
+            }
+            
+            renderBoard();
+            updateUI();
+            if (callback) callback();
+        }
+
+        function rotateBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.classList.add('rotating');
+
+            const newBoard = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    newBoard[col][boardSize - 1 - row] = board[row][col];
+                }
+            }
+            board = newBoard;
+
+            setTimeout(() => {
+                boardElement.innerHTML = '';
+            }, 750);
+
+            setTimeout(() => {
+                boardElement.classList.remove('rotating');
+                renderBoard();
+            }, 800);
+        }
+
+        function applyGravity(callback) {
+            const finalBoard = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
+            for (let col = 0; col < boardSize; col++) {
+                const column = [];
+                for (let row = 0; row < boardSize; row++) {
+                    if (board[row][col] !== 0) {
+                        column.push(board[row][col]);
+                    }
+                }
+
+                for (let i = 0; i < column.length; i++) {
+                    finalBoard[boardSize - 1 - i][col] = column[column.length - 1 - i];
+                }
+            }
+
+            animateGravityStep(0, finalBoard, callback);
+        }
+
+        function animateGravityStep(step, finalBoard, callback) {
+            const maxSteps = boardSize;
+            
+            if (step >= maxSteps) {
+                board = finalBoard;
+                updateUI();
+                renderBoard();
+                if (callback) callback();
+                return;
+            }
+
+            let hasMovement = false;
+            for (let col = 0; col < boardSize; col++) {
+                for (let row = boardSize - 1; row >= 0; row--) {
+                    if (board[row][col] !== 0 && row < boardSize - 1 && board[row + 1][col] === 0) {
+                        board[row + 1][col] = board[row][col];
+                        board[row][col] = 0;
+                        hasMovement = true;
+                    }
+                }
+            }
+
+            renderBoard();
+
+            if (hasMovement) {
+                setTimeout(() => {
+                    animateGravityStep(step + 1, finalBoard, callback);
+                }, 300);
+            } else {
+                board = finalBoard;
+                updateUI();
+                renderBoard();
+                if (callback) callback();
+            }
+        }
+
+        function hasValidMoves(player) {
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    if (board[row][col] === 0 && isValidMoveAfterGravity(row, col, player)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function checkGameEnd() {
+            const blackHasMoves = hasValidMoves(1);
+            const whiteHasMoves = hasValidMoves(-1);
+            const currentPlayerHasMoves = hasValidMoves(currentPlayer);
+
+            if (!blackHasMoves && !whiteHasMoves) {
+                isAnimating = true;
+                setTimeout(() => {
+                    rotateBoard();
+                    setTimeout(() => {
+                        applyGravity(() => {
+                            setTimeout(() => {
+                                const blackHasMovesAfter = hasValidMoves(1);
+                                const whiteHasMovesAfter = hasValidMoves(-1);
+                                
+                                if (!blackHasMovesAfter && !whiteHasMovesAfter) {
+                                    gameOver = true;
+                                    const blackCount = countPieces(1);
+                                    const whiteCount = countPieces(-1);
+                                    let winner = '引き分け';
+                                    if (blackCount > whiteCount) winner = '黒の勝ち';
+                                    else if (whiteCount > blackCount) winner = '白の勝ち';
+                                    document.getElementById('message').textContent = `${winner}！`;
+                                    document.getElementById('message').classList.add('game-over');
+                                } else {
+                                    updateUI();
+                                    renderBoard();
+                                }
+                                isAnimating = false;
+                            }, 100);
+                        });
+                    }, 900);
+                }, 1000);
+                return;
+            } else if (!currentPlayerHasMoves) {
+                const passPlayerName = currentPlayer === 1 ? '黒' : '白';
+                document.getElementById('message').textContent = `${passPlayerName}はパスです`;
+                
+                currentPlayer = -currentPlayer;
+                
+                setTimeout(() => {
+                    if (!hasValidMoves(currentPlayer)) {
+                        gameOver = true;
+                        const blackCount = countPieces(1);
+                        const whiteCount = countPieces(-1);
+                        let winner = '引き分け';
+                        if (blackCount > whiteCount) winner = '黒の勝ち';
+                        else if (whiteCount > blackCount) winner = '白の勝ち';
+                        document.getElementById('message').textContent = `${winner}！`;
+                        document.getElementById('message').classList.add('game-over');
+                        renderBoard();
+                    } else {
+                        updateUI();
+                        renderBoard();
+                    }
+                }, 1000);
+                return;
+            }
+
+            updateUI();
+            renderBoard();
+        }
+
+        function countPieces(player) {
+            let count = 0;
+            for (let row = 0; row < boardSize; row++) {
+                for (let col = 0; col < boardSize; col++) {
+                    if (board[row][col] === player) count++;
+                }
+            }
+            return count;
+        }
+
+        function updateUI() {
+            document.getElementById('blackScore').textContent = countPieces(1);
+            document.getElementById('whiteScore').textContent = countPieces(-1);
+            
+            if (!gameOver) {
+                document.getElementById('message').textContent = `${currentPlayer === 1 ? '黒' : '白'}の手番です`;
+                document.getElementById('message').classList.remove('game-over');
+            }
+        }
+
+        function resetGame() {
+            initializeBoard();
+        }
+    </script>
+</body>
+</html>
