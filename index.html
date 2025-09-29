@@ -121,20 +121,6 @@
             pointer-events: none;
         }
 
-        .cell.last-move {
-            background-color: #FF6B6B;
-            animation: pulse 1s ease-in-out;
-        }
-
-        .cell.last-move:hover {
-            background-color: #FF8888;
-        }
-
-        @keyframes pulse {
-            0%, 100% { background-color: #FF6B6B; }
-            50% { background-color: #FF4444; }
-        }
-
         .piece {
             border-radius: 50%;
             position: absolute;
@@ -396,7 +382,6 @@
         let isShowingMessage = false;
         let isFirstMove = true;
         let boardSize = 6;
-        let lastMovePosition = null;
 
         function startGame(size) {
             boardSize = size;
@@ -439,7 +424,6 @@
             isAnimating = false;
             isShowingMessage = false;
             isFirstMove = true;
-            lastMovePosition = null;
             renderBoard();
             updateScoreAndTurn();
             updateButtonStates();
@@ -456,9 +440,6 @@
                     cell.className = `cell size-${boardSize}`;
                     if (isAnimating || gameOver || isShowingMessage) {
                         cell.classList.add('disabled');
-                    }
-                    if (lastMovePosition && lastMovePosition.row === row && lastMovePosition.col === col) {
-                        cell.classList.add('last-move');
                     }
                     cell.dataset.row = row;
                     cell.dataset.col = col;
@@ -490,10 +471,6 @@
             return newBoard;
         }
 
-        function rotatePosition(row, col) {
-            return { row: col, col: boardSize - 1 - row };
-        }
-
         function applyGravityToBoard(board) {
             const newBoard = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
             for (let col = 0; col < boardSize; col++) {
@@ -508,15 +485,6 @@
                 }
             }
             return newBoard;
-        }
-
-        function findPieceAfterGravity(board, col, pieceValue) {
-            for (let r = boardSize - 1; r >= 0; r--) {
-                if (board[r][col] === pieceValue) {
-                    return r;
-                }
-            }
-            return -1;
         }
 
         function isValidMove(row, col, player) {
@@ -536,15 +504,25 @@
             if (isFirstMove && player === 1) {
                 finalBoard = applyGravityToBoard(tempBoard);
                 placedCol = col;
-                placedRow = findPieceAfterGravity(finalBoard, col, player);
+                for (let r = boardSize - 1; r >= 0; r--) {
+                    if (finalBoard[r][col] === player) {
+                        placedRow = r;
+                        break;
+                    }
+                }
             } else {
                 const rotatedBoard = rotateBoard90(tempBoard);
                 finalBoard = applyGravityToBoard(rotatedBoard);
                 placedCol = boardSize - 1 - row;
-                placedRow = findPieceAfterGravity(finalBoard, placedCol, player);
+                for (let r = boardSize - 1; r >= 0; r--) {
+                    if (finalBoard[r][placedCol] === player) {
+                        placedRow = r;
+                        break;
+                    }
+                }
             }
 
-            if (placedRow === -1) return null;
+            if (placedRow === undefined) return null;
 
             if (canFlipPieces(finalBoard, placedRow, placedCol, player)) {
                 return { finalBoard, placedRow, placedCol };
@@ -648,13 +626,8 @@
 
             if (isFirstMove && currentPlayer === 1) {
                 isFirstMove = false;
-                let trackingCol = col;
-                
                 setTimeout(() => {
                     applyGravity(() => {
-                        const finalRow = findPieceAfterGravity(board, trackingCol, currentPlayer);
-                        lastMovePosition = { row: finalRow, col: trackingCol };
-                        
                         const { placedRow, placedCol } = simulationResult;
                         
                         if (placedRow !== undefined && placedCol !== undefined) {
@@ -684,20 +657,10 @@
                     });
                 }, 500);
             } else {
-                let trackingRow = row;
-                let trackingCol = col;
-                
                 setTimeout(() => {
-                    const rotatedPos = rotatePosition(trackingRow, trackingCol);
-                    trackingRow = rotatedPos.row;
-                    trackingCol = rotatedPos.col;
-                    
                     rotateBoard();
                     setTimeout(() => {
                         applyGravity(() => {
-                            const finalRow = findPieceAfterGravity(board, trackingCol, currentPlayer);
-                            lastMovePosition = { row: finalRow, col: trackingCol };
-                            
                             const { placedRow, placedCol } = simulationResult;
                             
                             if (placedRow !== undefined && placedCol !== undefined) {
@@ -868,23 +831,10 @@
                     
                     setTimeout(() => {
                         showMessage('盤面を回転中…');
-                        
-                        if (lastMovePosition) {
-                            const rotatedPos = rotatePosition(lastMovePosition.row, lastMovePosition.col);
-                            lastMovePosition = rotatedPos;
-                        }
-                        
                         rotateBoard();
                         setTimeout(() => {
                             showMessage('落下中…');
                             applyGravity(() => {
-                                if (lastMovePosition) {
-                                    const finalRow = findPieceAfterGravity(board, lastMovePosition.col, board[lastMovePosition.row]?.[lastMovePosition.col] || 0);
-                                    if (finalRow !== -1) {
-                                        lastMovePosition.row = finalRow;
-                                    }
-                                }
-                                
                                 renderBoard();
                                 updateScoreOnly();
 
