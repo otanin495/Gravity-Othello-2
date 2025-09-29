@@ -57,6 +57,11 @@
             background-color: #1976D2;
         }
 
+        .size-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
         .board-container {
             perspective: 1000px;
             margin-bottom: 20px;
@@ -114,6 +119,20 @@
         .cell.disabled {
             cursor: not-allowed;
             pointer-events: none;
+        }
+
+        .cell.last-move {
+            background-color: #FF6B6B;
+            animation: pulse 1s ease-in-out;
+        }
+
+        .cell.last-move:hover {
+            background-color: #FF8888;
+        }
+
+        @keyframes pulse {
+            0%, 100% { background-color: #FF6B6B; }
+            50% { background-color: #FF4444; }
         }
 
         .piece {
@@ -185,8 +204,13 @@
             margin: 5px;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
             background-color: #1976D2;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
 
         .game-controls {
@@ -359,8 +383,8 @@
         <div class="message" id="message"></div>
         
         <div class="game-controls">
-            <button onclick="resetGame()">リセット</button>
-            <button onclick="backToSelection()">盤面選択に戻る</button>
+            <button id="resetButton" onclick="resetGame()">リセット</button>
+            <button id="backButton" onclick="backToSelection()">盤面選択に戻る</button>
         </div>
     </div>
 
@@ -372,6 +396,7 @@
         let isShowingMessage = false;
         let isFirstMove = true;
         let boardSize = 6;
+        let lastMovePosition = null;
 
         function startGame(size) {
             boardSize = size;
@@ -385,6 +410,19 @@
             document.getElementById('boardSelection').classList.remove('hidden');
             document.getElementById('gameInfo').classList.add('hidden');
             document.getElementById('gameArea').classList.add('hidden');
+        }
+
+        function updateButtonStates() {
+            const resetButton = document.getElementById('resetButton');
+            const backButton = document.getElementById('backButton');
+            
+            if (isAnimating || isShowingMessage) {
+                if (resetButton) resetButton.disabled = true;
+                if (backButton) backButton.disabled = true;
+            } else {
+                if (resetButton) resetButton.disabled = false;
+                if (backButton) backButton.disabled = false;
+            }
         }
 
         function initializeBoard() {
@@ -401,8 +439,10 @@
             isAnimating = false;
             isShowingMessage = false;
             isFirstMove = true;
+            lastMovePosition = null;
             renderBoard();
             updateScoreAndTurn();
+            updateButtonStates();
         }
 
         function renderBoard() {
@@ -417,6 +457,9 @@
                     if (isAnimating || gameOver || isShowingMessage) {
                         cell.classList.add('disabled');
                     }
+                    if (lastMovePosition && lastMovePosition.row === row && lastMovePosition.col === col) {
+                        cell.classList.add('last-move');
+                    }
                     cell.dataset.row = row;
                     cell.dataset.col = col;
                     
@@ -430,6 +473,7 @@
                     boardElement.appendChild(cell);
                 }
             }
+            updateButtonStates();
         }
 
         function copyBoard(board) {
@@ -446,6 +490,10 @@
             return newBoard;
         }
 
+        function rotatePosition(row, col) {
+            return { row: col, col: boardSize - 1 - row };
+        }
+
         function applyGravityToBoard(board) {
             const newBoard = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
             for (let col = 0; col < boardSize; col++) {
@@ -460,6 +508,15 @@
                 }
             }
             return newBoard;
+        }
+
+        function findPieceAfterGravity(board, col, pieceValue) {
+            for (let r = boardSize - 1; r >= 0; r--) {
+                if (board[r][col] === pieceValue) {
+                    return r;
+                }
+            }
+            return -1;
         }
 
         function isValidMove(row, col, player) {
@@ -479,25 +536,15 @@
             if (isFirstMove && player === 1) {
                 finalBoard = applyGravityToBoard(tempBoard);
                 placedCol = col;
-                for (let r = boardSize - 1; r >= 0; r--) {
-                    if (finalBoard[r][col] === player) {
-                        placedRow = r;
-                        break;
-                    }
-                }
+                placedRow = findPieceAfterGravity(finalBoard, col, player);
             } else {
                 const rotatedBoard = rotateBoard90(tempBoard);
                 finalBoard = applyGravityToBoard(rotatedBoard);
                 placedCol = boardSize - 1 - row;
-                for (let r = boardSize - 1; r >= 0; r--) {
-                    if (finalBoard[r][placedCol] === player) {
-                        placedRow = r;
-                        break;
-                    }
-                }
+                placedRow = findPieceAfterGravity(finalBoard, placedCol, player);
             }
 
-            if (placedRow === undefined) return null;
+            if (placedRow === -1) return null;
 
             if (canFlipPieces(finalBoard, placedRow, placedCol, player)) {
                 return { finalBoard, placedRow, placedCol };
@@ -593,6 +640,7 @@
             }
 
             isAnimating = true;
+            updateButtonStates();
 
             board[row][col] = currentPlayer;
             renderBoard();
@@ -600,8 +648,13 @@
 
             if (isFirstMove && currentPlayer === 1) {
                 isFirstMove = false;
+                let trackingCol = col;
+                
                 setTimeout(() => {
                     applyGravity(() => {
+                        const finalRow = findPieceAfterGravity(board, trackingCol, currentPlayer);
+                        lastMovePosition = { row: finalRow, col: trackingCol };
+                        
                         const { placedRow, placedCol } = simulationResult;
                         
                         if (placedRow !== undefined && placedCol !== undefined) {
@@ -613,6 +666,7 @@
                         
                         if (checkImmediateGameEnd()) {
                             isAnimating = false;
+                            updateButtonStates();
                             return;
                         }
                         
@@ -625,14 +679,25 @@
                             messageEl.textContent = `${playerName}の手番です`;
                             messageEl.classList.remove('game-over', 'error');
                             checkGameEnd();
+                            updateButtonStates();
                         }, 100);
                     });
                 }, 500);
             } else {
+                let trackingRow = row;
+                let trackingCol = col;
+                
                 setTimeout(() => {
+                    const rotatedPos = rotatePosition(trackingRow, trackingCol);
+                    trackingRow = rotatedPos.row;
+                    trackingCol = rotatedPos.col;
+                    
                     rotateBoard();
                     setTimeout(() => {
                         applyGravity(() => {
+                            const finalRow = findPieceAfterGravity(board, trackingCol, currentPlayer);
+                            lastMovePosition = { row: finalRow, col: trackingCol };
+                            
                             const { placedRow, placedCol } = simulationResult;
                             
                             if (placedRow !== undefined && placedCol !== undefined) {
@@ -644,6 +709,7 @@
                             
                             if (checkImmediateGameEnd()) {
                                 isAnimating = false;
+                                updateButtonStates();
                                 return;
                             }
                             
@@ -656,6 +722,7 @@
                                 messageEl.textContent = `${playerName}の手番です`;
                                 messageEl.classList.remove('game-over', 'error');
                                 checkGameEnd();
+                                updateButtonStates();
                             }, 100);
                         });
                     }, 900);
@@ -795,15 +862,29 @@
                 if (!nextPlayerHasMoves) {
                     isAnimating = true;
                     isShowingMessage = true;
+                    updateButtonStates();
                     showMessage('両プレイヤーとも手がないため、回転します');
                     renderBoard();
                     
                     setTimeout(() => {
                         showMessage('盤面を回転中…');
+                        
+                        if (lastMovePosition) {
+                            const rotatedPos = rotatePosition(lastMovePosition.row, lastMovePosition.col);
+                            lastMovePosition = rotatedPos;
+                        }
+                        
                         rotateBoard();
                         setTimeout(() => {
                             showMessage('落下中…');
                             applyGravity(() => {
+                                if (lastMovePosition) {
+                                    const finalRow = findPieceAfterGravity(board, lastMovePosition.col, board[lastMovePosition.row]?.[lastMovePosition.col] || 0);
+                                    if (finalRow !== -1) {
+                                        lastMovePosition.row = finalRow;
+                                    }
+                                }
+                                
                                 renderBoard();
                                 updateScoreOnly();
 
@@ -830,6 +911,7 @@
                                 isAnimating = false;
                                 isShowingMessage = false;
                                 renderBoard();
+                                updateButtonStates();
                             });
                         }, 900);
                     }, 2000);
@@ -837,6 +919,7 @@
                 } else {
                     isAnimating = true;
                     isShowingMessage = true;
+                    updateButtonStates();
                     showMessage(`${passPlayerName}はパスです`);
                     renderBoard();
                     
@@ -849,6 +932,7 @@
                         messageEl.textContent = `${playerName}の手番です`;
                         messageEl.classList.remove('game-over', 'error');
                         renderBoard();
+                        updateButtonStates();
                     }, 2000);
                 }
             }
@@ -893,6 +977,9 @@
         }
 
         function resetGame() {
+            if (isAnimating || isShowingMessage) {
+                return;
+            }
             initializeBoard();
         }
     </script>
