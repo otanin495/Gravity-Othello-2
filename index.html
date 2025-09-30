@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gravity Othello 2</title>
+    <title>Gravity Othello</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -57,11 +57,6 @@
             background-color: #1976D2;
         }
 
-        .size-button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-
         .board-container {
             perspective: 1000px;
             margin-bottom: 20px;
@@ -112,13 +107,22 @@
             height: 50px;
         }
 
-        .cell:hover {
+        .cell.placeable {
             background-color: #90EE90;
+            box-shadow: 0 0 10px rgba(144, 238, 144, 0.7);
         }
 
-        .cell.disabled {
-            cursor: not-allowed;
-            pointer-events: none;
+        .cell.placeable.black-turn {
+            background-color: #A9A9A9;
+            box-shadow: 0 0 10px rgba(169, 169, 169, 0.7);
+        }
+
+        .cell:hover.placeable {
+            background-color: #98FB98;
+        }
+
+        .cell:hover.placeable.black-turn {
+            background-color: #C0C0C0;
         }
 
         .piece {
@@ -174,11 +178,6 @@
             font-weight: bold;
         }
 
-        .error {
-            color: #d32f2f;
-            font-weight: bold;
-        }
-
         button {
             padding: 10px 20px;
             font-size: 16px;
@@ -188,6 +187,7 @@
             border-radius: 4px;
             cursor: pointer;
             margin: 5px;
+            transition: background-color 0.3s;
         }
 
         button:hover:not(:disabled) {
@@ -345,7 +345,7 @@
 </head>
 <body>
     <div class="game-info">
-        <div class="game-title">Gravity Othello 2</div>
+        <div class="game-title">Gravity Othello</div>
         
         <div id="boardSelection" class="board-selection">
             <p>盤面サイズを選択してください</p>
@@ -392,6 +392,7 @@
         }
 
         function backToSelection() {
+            if (isAnimating || isShowingMessage) return;
             document.getElementById('boardSelection').classList.remove('hidden');
             document.getElementById('gameInfo').classList.add('hidden');
             document.getElementById('gameArea').classList.add('hidden');
@@ -425,11 +426,11 @@
             isShowingMessage = false;
             isFirstMove = true;
             renderBoard();
-            updateScoreAndTurn();
+            updateUI();
             updateButtonStates();
         }
 
-        function renderBoard() {
+        function renderBoard(showPlaceable = true) {
             const boardElement = document.getElementById('board');
             boardElement.innerHTML = '';
             boardElement.className = `board size-${boardSize}`;
@@ -438,9 +439,6 @@
                 for (let col = 0; col < boardSize; col++) {
                     const cell = document.createElement('div');
                     cell.className = `cell size-${boardSize}`;
-                    if (isAnimating || gameOver || isShowingMessage) {
-                        cell.classList.add('disabled');
-                    }
                     cell.dataset.row = row;
                     cell.dataset.col = col;
                     
@@ -450,6 +448,13 @@
                         cell.appendChild(piece);
                     }
 
+                    if (showPlaceable && isValidMove(row, col, currentPlayer)) {
+                        cell.classList.add('placeable');
+                        if (currentPlayer === 1) {
+                            cell.classList.add('black-turn');
+                        }
+                    }
+
                     cell.addEventListener('click', () => handleCellClick(row, col));
                     boardElement.appendChild(cell);
                 }
@@ -457,92 +462,20 @@
             updateButtonStates();
         }
 
-        function copyBoard(board) {
-            return board.map(row => [...row]);
-        }
-
-        function rotateBoard90(board) {
-            const newBoard = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
-            for (let row = 0; row < boardSize; row++) {
-                for (let col = 0; col < boardSize; col++) {
-                    newBoard[col][boardSize - 1 - row] = board[row][col];
-                }
-            }
-            return newBoard;
-        }
-
-        function applyGravityToBoard(board) {
-            const newBoard = Array(boardSize).fill().map(() => Array(boardSize).fill(0));
-            for (let col = 0; col < boardSize; col++) {
-                const column = [];
-                for (let row = 0; row < boardSize; row++) {
-                    if (board[row][col] !== 0) {
-                        column.push(board[row][col]);
-                    }
-                }
-                for (let i = 0; i < column.length; i++) {
-                    newBoard[boardSize - 1 - i][col] = column[column.length - 1 - i];
-                }
-            }
-            return newBoard;
-        }
-
         function isValidMove(row, col, player) {
             if (board[row][col] !== 0) return false;
 
-            const simulationResult = simulateMove(row, col, player);
-            return simulationResult !== null;
-        }
-
-        function simulateMove(row, col, player) {
-            const tempBoard = copyBoard(board);
-            tempBoard[row][col] = player;
-
-            let finalBoard;
-            let placedRow, placedCol;
-
-            if (isFirstMove && player === 1) {
-                finalBoard = applyGravityToBoard(tempBoard);
-                placedCol = col;
-                for (let r = boardSize - 1; r >= 0; r--) {
-                    if (finalBoard[r][col] === player) {
-                        placedRow = r;
-                        break;
-                    }
-                }
-            } else {
-                const rotatedBoard = rotateBoard90(tempBoard);
-                finalBoard = applyGravityToBoard(rotatedBoard);
-                placedCol = boardSize - 1 - row;
-                for (let r = boardSize - 1; r >= 0; r--) {
-                    if (finalBoard[r][placedCol] === player) {
-                        placedRow = r;
-                        break;
-                    }
-                }
-            }
-
-            if (placedRow === undefined) return null;
-
-            if (canFlipPieces(finalBoard, placedRow, placedCol, player)) {
-                return { finalBoard, placedRow, placedCol };
-            }
-            
-            return null;
-        }
-
-        function canFlipPieces(board, row, col, player) {
             const directions = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]];
             
             for (const [dr, dc] of directions) {
-                if (canFlipInDirection(board, row, col, dr, dc, player)) {
+                if (canFlipInDirection(row, col, dr, dc, player)) {
                     return true;
                 }
             }
             return false;
         }
 
-        function canFlipInDirection(board, row, col, dr, dc, player) {
+        function canFlipInDirection(row, col, dr, dc, player) {
             let r = row + dr;
             let c = col + dc;
             let hasOpponent = false;
@@ -560,11 +493,11 @@
             return false;
         }
 
-        function flipPieces(board, row, col, player) {
+        function flipPieces(row, col, player) {
             const directions = [[-1,-1], [-1,0], [-1,1], [0,-1], [0,1], [1,-1], [1,0], [1,1]];
             
             for (const [dr, dc] of directions) {
-                if (canFlipInDirection(board, row, col, dr, dc, player)) {
+                if (canFlipInDirection(row, col, dr, dc, player)) {
                     let r = row + dr;
                     let c = col + dc;
                     while (board[r][c] === -player) {
@@ -587,71 +520,42 @@
                 let winner = '引き分け';
                 if (blackCount > whiteCount) winner = '黒の勝ち';
                 else if (whiteCount > blackCount) winner = '白の勝ち';
-                showGameOverMessage(`${winner}！`);
+                document.getElementById('message').textContent = `${winner}！`;
+                document.getElementById('message').classList.add('game-over');
                 return true;
             }
             return false;
         }
 
         function handleCellClick(row, col) {
-            if (gameOver || isAnimating || isShowingMessage) {
-                return;
-            }
-
-            const messageEl = document.getElementById('message');
-            if (messageEl.classList.contains('error')) {
-                const simulationResult = simulateMove(row, col, currentPlayer);
-                if (simulationResult && board[row][col] === 0) {
-                    clearErrorMessage();
-                }
-            }
-
-            if (board[row][col] !== 0) {
-                showErrorMessage('既に石があります');
-                return;
-            }
-
-            const simulationResult = simulateMove(row, col, currentPlayer);
-            if (!simulationResult) {
-                showErrorMessage('そのマスには置けません');
+            if (gameOver || isAnimating || isShowingMessage || !isValidMove(row, col, currentPlayer)) {
                 return;
             }
 
             isAnimating = true;
             updateButtonStates();
-
             board[row][col] = currentPlayer;
-            renderBoard();
-            updateScoreOnly();
+            flipPieces(row, col, currentPlayer);
+            
+            updateUI();
+            renderBoard(false);
+
+            if (checkImmediateGameEnd()) {
+                isAnimating = false;
+                updateButtonStates();
+                return;
+            }
 
             if (isFirstMove && currentPlayer === 1) {
                 isFirstMove = false;
                 setTimeout(() => {
                     applyGravity(() => {
-                        const { placedRow, placedCol } = simulationResult;
-                        
-                        if (placedRow !== undefined && placedCol !== undefined) {
-                            flipPieces(board, placedRow, placedCol, currentPlayer);
-                        }
-                        
-                        renderBoard();
-                        updateScoreOnly();
-                        
-                        if (checkImmediateGameEnd()) {
-                            isAnimating = false;
-                            updateButtonStates();
-                            return;
-                        }
-                        
                         currentPlayer = -currentPlayer;
                         setTimeout(() => {
+                            if (!checkImmediateGameEnd()) {
+                                checkGameEnd();
+                            }
                             isAnimating = false;
-                            renderBoard();
-                            const playerName = currentPlayer === 1 ? '黒' : '白';
-                            const messageEl = document.getElementById('message');
-                            messageEl.textContent = `${playerName}の手番です`;
-                            messageEl.classList.remove('game-over', 'error');
-                            checkGameEnd();
                             updateButtonStates();
                         }, 100);
                     });
@@ -661,69 +565,17 @@
                     rotateBoard();
                     setTimeout(() => {
                         applyGravity(() => {
-                            const { placedRow, placedCol } = simulationResult;
-                            
-                            if (placedRow !== undefined && placedCol !== undefined) {
-                                flipPieces(board, placedRow, placedCol, currentPlayer);
-                            }
-                            
-                            renderBoard();
-                            updateScoreOnly();
-                            
-                            if (checkImmediateGameEnd()) {
-                                isAnimating = false;
-                                updateButtonStates();
-                                return;
-                            }
-                            
                             currentPlayer = -currentPlayer;
                             setTimeout(() => {
+                                if (!checkImmediateGameEnd()) {
+                                    checkGameEnd();
+                                }
                                 isAnimating = false;
-                                renderBoard();
-                                const playerName = currentPlayer === 1 ? '黒' : '白';
-                                const messageEl = document.getElementById('message');
-                                messageEl.textContent = `${playerName}の手番です`;
-                                messageEl.classList.remove('game-over', 'error');
-                                checkGameEnd();
                                 updateButtonStates();
                             }, 100);
                         });
                     }, 900);
                 }, 500);
-            }
-        }
-
-        function showErrorMessage(text) {
-            const messageEl = document.getElementById('message');
-            messageEl.textContent = text;
-            messageEl.classList.add('error');
-            messageEl.classList.remove('game-over');
-
-            if (window.errorMessageTimer) {
-                clearTimeout(window.errorMessageTimer);
-            }
-            
-            window.errorMessageTimer = setTimeout(() => {
-                clearErrorMessage();
-            }, 2000);
-        }
-
-        function clearErrorMessage() {
-            const messageEl = document.getElementById('message');
-            messageEl.classList.remove('error');
-            if (!gameOver && !isAnimating && !isShowingMessage) {
-                const playerName = currentPlayer === 1 ? '黒' : '白';
-                messageEl.textContent = `${playerName}の手番です`;
-                messageEl.classList.remove('game-over');
-            }
-        }
-
-        function updateTurnMessage() {
-            if (!gameOver && !isAnimating && !isShowingMessage) {
-                const playerName = currentPlayer === 1 ? '黒' : '白';
-                const messageEl = document.getElementById('message');
-                messageEl.textContent = `${playerName}の手番です`;
-                messageEl.classList.remove('game-over', 'error');
             }
         }
 
@@ -745,7 +597,7 @@
 
             setTimeout(() => {
                 boardElement.classList.remove('rotating');
-                renderBoard();
+                renderBoard(false);
             }, 800);
         }
 
@@ -772,8 +624,8 @@
             
             if (step >= maxSteps) {
                 board = finalBoard;
-                updateScoreOnly();
-                renderBoard();
+                updateUI();
+                renderBoard(false);
                 if (callback) callback();
                 return;
             }
@@ -789,7 +641,7 @@
                 }
             }
 
-            renderBoard();
+            renderBoard(false);
 
             if (hasMovement) {
                 setTimeout(() => {
@@ -797,8 +649,8 @@
                 }, 300);
             } else {
                 board = finalBoard;
-                updateScoreOnly();
-                renderBoard();
+                updateUI();
+                renderBoard(false);
                 if (callback) callback();
             }
         }
@@ -815,29 +667,19 @@
         }
 
         function checkGameEnd() {
+            const blackHasMoves = hasValidMoves(1);
+            const whiteHasMoves = hasValidMoves(-1);
             const currentPlayerHasMoves = hasValidMoves(currentPlayer);
 
-            if (!currentPlayerHasMoves) {
-                const passPlayerName = currentPlayer === 1 ? '黒' : '白';
-
-                const nextPlayerHasMoves = hasValidMoves(-currentPlayer);
-                
-                if (!nextPlayerHasMoves) {
-                    isAnimating = true;
-                    isShowingMessage = true;
-                    updateButtonStates();
-                    showMessage('両プレイヤーとも手がないため、回転します');
-                    renderBoard();
-                    
+            if (!blackHasMoves && !whiteHasMoves) {
+                isAnimating = true;
+                isShowingMessage = true;
+                updateButtonStates();
+                setTimeout(() => {
+                    rotateBoard();
                     setTimeout(() => {
-                        showMessage('盤面を回転中…');
-                        rotateBoard();
-                        setTimeout(() => {
-                            showMessage('落下中…');
-                            applyGravity(() => {
-                                renderBoard();
-                                updateScoreOnly();
-
+                        applyGravity(() => {
+                            setTimeout(() => {
                                 const blackHasMovesAfter = hasValidMoves(1);
                                 const whiteHasMovesAfter = hasValidMoves(-1);
                                 
@@ -848,44 +690,51 @@
                                     let winner = '引き分け';
                                     if (blackCount > whiteCount) winner = '黒の勝ち';
                                     else if (whiteCount > blackCount) winner = '白の勝ち';
-                                    showGameOverMessage(`${winner}！`);
+                                    document.getElementById('message').textContent = `${winner}！`;
+                                    document.getElementById('message').classList.add('game-over');
                                 } else {
-                                    if (!hasValidMoves(currentPlayer)) {
-                                        currentPlayer = -currentPlayer;
-                                    }
-                                    const playerName = currentPlayer === 1 ? '黒' : '白';
-                                    const messageEl = document.getElementById('message');
-                                    messageEl.textContent = `${playerName}の手番です`;
-                                    messageEl.classList.remove('game-over', 'error');
+                                    updateUI();
+                                    renderBoard(true);
                                 }
                                 isAnimating = false;
                                 isShowingMessage = false;
-                                renderBoard();
                                 updateButtonStates();
-                            });
-                        }, 900);
-                    }, 2000);
-                    return;
-                } else {
-                    isAnimating = true;
-                    isShowingMessage = true;
+                            }, 100);
+                        });
+                    }, 900);
+                }, 1000);
+                return;
+            } else if (!currentPlayerHasMoves) {
+                const passPlayerName = currentPlayer === 1 ? '黒' : '白';
+                isShowingMessage = true;
+                updateButtonStates();
+                document.getElementById('message').textContent = `${passPlayerName}はパスです`;
+                
+                currentPlayer = -currentPlayer;
+                
+                setTimeout(() => {
+                    if (!hasValidMoves(currentPlayer)) {
+                        gameOver = true;
+                        const blackCount = countPieces(1);
+                        const whiteCount = countPieces(-1);
+                        let winner = '引き分け';
+                        if (blackCount > whiteCount) winner = '黒の勝ち';
+                        else if (whiteCount > blackCount) winner = '白の勝ち';
+                        document.getElementById('message').textContent = `${winner}！`;
+                        document.getElementById('message').classList.add('game-over');
+                        renderBoard(false);
+                    } else {
+                        updateUI();
+                        renderBoard(true);
+                    }
+                    isShowingMessage = false;
                     updateButtonStates();
-                    showMessage(`${passPlayerName}はパスです`);
-                    renderBoard();
-                    
-                    setTimeout(() => {
-                        currentPlayer = -currentPlayer;
-                        isAnimating = false;
-                        isShowingMessage = false;
-                        const playerName = currentPlayer === 1 ? '黒' : '白';
-                        const messageEl = document.getElementById('message');
-                        messageEl.textContent = `${playerName}の手番です`;
-                        messageEl.classList.remove('game-over', 'error');
-                        renderBoard();
-                        updateButtonStates();
-                    }, 2000);
-                }
+                }, 1000);
+                return;
             }
+
+            updateUI();
+            renderBoard(true);
         }
 
         function countPieces(player) {
@@ -898,31 +747,13 @@
             return count;
         }
 
-        function showMessage(text) {
-            const messageEl = document.getElementById('message');
-            messageEl.textContent = text;
-            messageEl.classList.remove('game-over', 'error');
-        }
-
-        function showGameOverMessage(text) {
-            const messageEl = document.getElementById('message');
-            messageEl.textContent = text;
-            messageEl.classList.add('game-over');
-            messageEl.classList.remove('error');
-        }
-
-        function updateScoreOnly() {
+        function updateUI() {
             document.getElementById('blackScore').textContent = countPieces(1);
             document.getElementById('whiteScore').textContent = countPieces(-1);
-        }
-
-        function updateScoreAndTurn() {
-            updateScoreOnly();
-            if (!gameOver && !isAnimating && !isShowingMessage) {
-                const playerName = currentPlayer === 1 ? '黒' : '白';
-                const messageEl = document.getElementById('message');
-                messageEl.textContent = `${playerName}の手番です`;
-                messageEl.classList.remove('game-over', 'error');
+            
+            if (!gameOver) {
+                document.getElementById('message').textContent = `${currentPlayer === 1 ? '黒' : '白'}の手番です`;
+                document.getElementById('message').classList.remove('game-over');
             }
         }
 
