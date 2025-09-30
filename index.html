@@ -352,11 +352,19 @@
             <button class="size-button" onclick="startGame(4)">4×4盤</button>
             <button class="size-button" onclick="startGame(6)">6×6盤</button>
             <button class="size-button" onclick="startGame(8)">8×8盤</button>
-        </div>
-
+        </div>  
         <div id="gameInfo" class="hidden">
             <div class="score">
-                黒: <span id="blackScore">0</span> | 白: <span id="whiteScore">0</span>
+                <div style="display: flex; gap: 16px; align-items: center; justify-content: center;">
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; background: black;"></div>
+                        <span id="blackScore">0</span>
+                    </div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; background: white; border: 2px solid #333;"></div>
+                        <span id="whiteScore">0</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
